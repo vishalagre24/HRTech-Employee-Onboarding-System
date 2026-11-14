@@ -13,50 +13,70 @@ $message = "";
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    $employeeId = trim($_POST["employee_id"]);
-    $fullName = trim($_POST["full_name"]);
-    $email = trim($_POST["email"]);
-    $phone = trim($_POST["phone"]);
-    $department = trim($_POST["department"]);
-    $designation = trim($_POST["designation"]);
-    $joiningDate = $_POST["joining_date"];
+    $fullName = trim($_POST["full_name"] ?? "");
+    $email = trim($_POST["email"] ?? "");
+    $phone = trim($_POST["phone"] ?? "");
+    $department = trim($_POST["department"] ?? "");
+    $position = trim($_POST["position"] ?? "");
+    $joiningDate = $_POST["joining_date"] ?? "";
 
-    $sql = "INSERT INTO employees
-            (
-                employee_id,
-                full_name,
-                email,
-                phone,
-                department,
-                designation,
-                joining_date
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?)";
+    if ($fullName === "" || $email === "") {
 
-    $stmt = mysqli_prepare($conn, $sql);
+        $message = "Full Name and Email are required.";
 
-    mysqli_stmt_bind_param(
-        $stmt,
-        "sssssss",
-        $employeeId,
-        $fullName,
-        $email,
-        $phone,
-        $department,
-        $designation,
-        $joiningDate
-    );
-
-    if (mysqli_stmt_execute($stmt)) {
-        $message = "Employee added successfully!";
     } else {
-        $message = "Error: " . mysqli_error($conn);
+
+        $sql = "INSERT INTO employees
+                (
+                    full_name,
+                    email,
+                    phone,
+                    department,
+                    position,
+                    joining_date
+                )
+                VALUES (?, ?, ?, ?, ?, ?)";
+
+        $stmt = mysqli_prepare($conn, $sql);
+
+        if ($stmt) {
+
+            mysqli_stmt_bind_param(
+                $stmt,
+                "ssssss",
+                $fullName,
+                $email,
+                $phone,
+                $department,
+                $position,
+                $joiningDate
+            );
+
+            if (mysqli_stmt_execute($stmt)) {
+
+                $message = "Employee added successfully!";
+
+            } else {
+
+                $message = "Error: " .
+                    mysqli_stmt_error($stmt);
+            }
+
+            mysqli_stmt_close($stmt);
+
+        } else {
+
+            $message = "Database error: " .
+                mysqli_error($conn);
+        }
     }
 }
 
 $employees = mysqli_query(
     $conn,
-    "SELECT * FROM employees ORDER BY id DESC"
+    "SELECT *
+     FROM employees
+     ORDER BY id DESC"
 );
 
 ?>
@@ -79,10 +99,12 @@ $employees = mysqli_query(
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
         rel="stylesheet"
     >
-<link
-    rel="stylesheet"
-    href="../css/style.css"
->
+
+    <link
+        rel="stylesheet"
+        href="../css/style.css"
+    >
+
 </head>
 
 <body class="bg-light">
@@ -92,7 +114,7 @@ $employees = mysqli_query(
     <div class="container">
 
         <a
-            class="navbar-brand"
+            class="navbar-brand fw-bold"
             href="dashboard.php"
         >
             HRTech
@@ -109,20 +131,26 @@ $employees = mysqli_query(
 
 </nav>
 
+
 <div class="container mt-4">
 
     <h2>Employee Management</h2>
 
-    <?php if ($message != "") { ?>
 
-        <div class="alert alert-success">
+    <?php if ($message !== "") { ?>
 
-            <?php echo $message; ?>
+        <div class="alert alert-info">
+
+            <?php
+            echo htmlspecialchars($message);
+            ?>
 
         </div>
 
     <?php } ?>
 
+
+    <!-- Add Employee -->
 
     <div class="card shadow mt-4">
 
@@ -134,25 +162,12 @@ $employees = mysqli_query(
 
                 <div class="row">
 
-                    <div class="col-md-6 mb-3">
 
-                        <label>
-                            Employee ID
-                        </label>
-
-                        <input
-                            type="text"
-                            name="employee_id"
-                            class="form-control"
-                            required
-                        >
-
-                    </div>
-
+                    <!-- Full Name -->
 
                     <div class="col-md-6 mb-3">
 
-                        <label>
+                        <label class="form-label">
                             Full Name
                         </label>
 
@@ -166,9 +181,11 @@ $employees = mysqli_query(
                     </div>
 
 
+                    <!-- Email -->
+
                     <div class="col-md-6 mb-3">
 
-                        <label>
+                        <label class="form-label">
                             Email
                         </label>
 
@@ -182,9 +199,11 @@ $employees = mysqli_query(
                     </div>
 
 
+                    <!-- Phone -->
+
                     <div class="col-md-6 mb-3">
 
-                        <label>
+                        <label class="form-label">
                             Phone
                         </label>
 
@@ -197,9 +216,11 @@ $employees = mysqli_query(
                     </div>
 
 
-                    <div class="col-md-4 mb-3">
+                    <!-- Department -->
 
-                        <label>
+                    <div class="col-md-6 mb-3">
+
+                        <label class="form-label">
                             Department
                         </label>
 
@@ -207,29 +228,35 @@ $employees = mysqli_query(
                             type="text"
                             name="department"
                             class="form-control"
+                            placeholder="Example: IT"
                         >
 
                     </div>
 
 
-                    <div class="col-md-4 mb-3">
+                    <!-- Position -->
 
-                        <label>
-                            Designation
+                    <div class="col-md-6 mb-3">
+
+                        <label class="form-label">
+                            Position
                         </label>
 
                         <input
                             type="text"
-                            name="designation"
+                            name="position"
                             class="form-control"
+                            placeholder="Example: Software Developer"
                         >
 
                     </div>
 
 
-                    <div class="col-md-4 mb-3">
+                    <!-- Joining Date -->
 
-                        <label>
+                    <div class="col-md-6 mb-3">
+
+                        <label class="form-label">
                             Joining Date
                         </label>
 
@@ -242,6 +269,7 @@ $employees = mysqli_query(
                     </div>
 
                 </div>
+
 
                 <button
                     type="submit"
@@ -257,6 +285,8 @@ $employees = mysqli_query(
     </div>
 
 
+    <!-- Employee List -->
+
     <div class="card shadow mt-4">
 
         <div class="card-body">
@@ -265,9 +295,9 @@ $employees = mysqli_query(
 
             <div class="table-responsive">
 
-                <table class="table table-bordered">
+                <table class="table table-bordered table-hover">
 
-                    <thead>
+                    <thead class="table-primary">
 
                         <tr>
 
@@ -279,9 +309,11 @@ $employees = mysqli_query(
 
                             <th>Department</th>
 
-                            <th>Designation</th>
+                            <th>Position</th>
 
-                            <th>Status</th>
+                            <th>Phone</th>
+
+                            <th>Joining Date</th>
 
                         </tr>
 
@@ -289,19 +321,30 @@ $employees = mysqli_query(
 
                     <tbody>
 
-                    <?php while (
-                        $employee =
-                        mysqli_fetch_assoc($employees)
-                    ) { ?>
+                    <?php
+
+                    if ($employees &&
+                        mysqli_num_rows($employees) > 0) {
+
+                        while (
+                            $employee =
+                            mysqli_fetch_assoc($employees)
+                        ) {
+
+                    ?>
 
                         <tr>
 
                             <td>
                                 <?php
+                                echo (int)$employee["id"];
+                                ?>
+                            </td>
+
+                            <td>
+                                <?php
                                 echo htmlspecialchars(
-                                    $employee[
-                                        "employee_id"
-                                    ]
+                                    $employee["full_name"]
                                 );
                                 ?>
                             </td>
@@ -309,9 +352,7 @@ $employees = mysqli_query(
                             <td>
                                 <?php
                                 echo htmlspecialchars(
-                                    $employee[
-                                        "full_name"
-                                    ]
+                                    $employee["email"]
                                 );
                                 ?>
                             </td>
@@ -319,9 +360,7 @@ $employees = mysqli_query(
                             <td>
                                 <?php
                                 echo htmlspecialchars(
-                                    $employee[
-                                        "email"
-                                    ]
+                                    $employee["department"] ?? ""
                                 );
                                 ?>
                             </td>
@@ -329,9 +368,7 @@ $employees = mysqli_query(
                             <td>
                                 <?php
                                 echo htmlspecialchars(
-                                    $employee[
-                                        "department"
-                                    ]
+                                    $employee["position"] ?? ""
                                 );
                                 ?>
                             </td>
@@ -339,23 +376,36 @@ $employees = mysqli_query(
                             <td>
                                 <?php
                                 echo htmlspecialchars(
-                                    $employee[
-                                        "designation"
-                                    ]
+                                    $employee["phone"] ?? ""
                                 );
                                 ?>
                             </td>
 
                             <td>
-
                                 <?php
                                 echo htmlspecialchars(
-                                    $employee[
-                                        "status"
-                                    ]
+                                    $employee["joining_date"] ?? ""
                                 );
                                 ?>
+                            </td>
 
+                        </tr>
+
+                    <?php
+
+                        }
+
+                    } else {
+
+                    ?>
+
+                        <tr>
+
+                            <td
+                                colspan="7"
+                                class="text-center text-muted"
+                            >
+                                No employees found.
                             </td>
 
                         </tr>

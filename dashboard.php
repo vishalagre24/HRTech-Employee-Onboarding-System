@@ -944,8 +944,16 @@ if (
                     class="btn btn-success me-2 mb-2"
                 >
 
-                    Assign Onboarding Task
+                    Assign Task
 
+                </a>
+
+                <a href="pending_onboarding.php" class="btn btn-outline-warning me-2 mb-2">
+                    Pending Onboarding
+                </a>
+
+                <a href="completed_onboarding.php" class="btn btn-outline-success me-2 mb-2">
+                    Completed Onboarding
                 </a>
 
 
@@ -978,6 +986,14 @@ if (
 
                 </a>
 
+                <a href="pending_onboarding.php" class="btn btn-outline-warning me-2 mb-2">
+                    Pending Onboarding
+                </a>
+
+                <a href="completed_onboarding.php" class="btn btn-outline-success me-2 mb-2">
+                    Completed Onboarding
+                </a>
+
 
                 <a
                     href="performance.php"
@@ -1004,7 +1020,7 @@ if (
                     class="btn btn-primary me-2 mb-2"
                 >
 
-                    My Onboarding Tasks
+                    My Tasks
 
                 </a>
 

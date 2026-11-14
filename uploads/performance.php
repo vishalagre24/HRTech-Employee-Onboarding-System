@@ -10,9 +10,7 @@ session_start();
 if (!isset($_SESSION["user_id"])) {
 
     header("Location: login.php");
-
     exit();
-
 }
 
 
@@ -21,9 +19,7 @@ if (!isset($_SESSION["user_id"])) {
 // =====================================
 
 $userRole = strtolower(
-    trim(
-        $_SESSION["role"] ?? ""
-    )
+    trim($_SESSION["role"] ?? "")
 );
 
 
@@ -33,9 +29,7 @@ if (
 ) {
 
     header("Location: dashboard.php");
-
     exit();
-
 }
 
 
@@ -47,8 +41,14 @@ require_once __DIR__ . "/../config/database.php";
 
 
 $message = "";
-
 $error = "";
+
+
+// =====================================
+// Logged In Reviewer ID
+// =====================================
+
+$reviewerId = (int) $_SESSION["user_id"];
 
 
 // =====================================
@@ -57,67 +57,57 @@ $error = "";
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    $employeeId =
-        isset($_POST["employee_id"])
-        ? (int) $_POST["employee_id"]
-        : 0;
+    $employeeId = (int) ($_POST["employee_id"] ?? 0);
 
+    $reviewPeriod = trim(
+        $_POST["review_period"] ?? ""
+    );
 
-    $rating =
-        isset($_POST["rating"])
-        ? (int) $_POST["rating"]
-        : 0;
+    $rating = (int) ($_POST["rating"] ?? 0);
 
+    $comments = trim(
+        $_POST["comments"] ?? ""
+    );
 
-    $feedback =
-        isset($_POST["feedback"])
-        ? trim($_POST["feedback"])
-        : "";
-
-
-    $reviewDate =
-        isset($_POST["review_date"])
-        ? trim($_POST["review_date"])
-        : date("Y-m-d");
+    $reviewDate = trim(
+        $_POST["review_date"] ?? date("Y-m-d")
+    );
 
 
     // Validation
 
     if ($employeeId <= 0) {
 
-        $error =
-            "Please select an employee.";
+        $error = "Please select an employee.";
 
-    } elseif (
-        $rating < 1 ||
-        $rating > 5
-    ) {
+    } elseif ($reviewPeriod === "") {
 
-        $error =
-            "Rating must be between 1 and 5.";
+        $error = "Please enter review period.";
 
-    } elseif ($feedback === "") {
+    } elseif ($rating < 1 || $rating > 5) {
 
-        $error =
-            "Please enter feedback.";
+        $error = "Rating must be between 1 and 5.";
+
+    } elseif ($comments === "") {
+
+        $error = "Please enter comments.";
 
     } else {
 
         $insertQuery = "
+
             INSERT INTO performance_reviews
             (
                 employee_id,
+                reviewer_id,
+                review_period,
                 rating,
-                feedback,
+                comments,
                 review_date
             )
-            VALUES
-            (
-                ?,
-                ?,
-                ?,
-                ?
-            )
+
+            VALUES (?, ?, ?, ?, ?, ?)
+
         ";
 
 
@@ -131,10 +121,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             mysqli_stmt_bind_param(
                 $insertStatement,
-                "iiss",
+                "iisiss",
                 $employeeId,
+                $reviewerId,
+                $reviewPeriod,
                 $rating,
-                $feedback,
+                $comments,
                 $reviewDate
             );
 
@@ -151,14 +143,25 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             } else {
 
                 $error =
-                    "Performance review could not be saved.";
+                    "Performance review could not be saved: "
+                    .
+                    mysqli_stmt_error(
+                        $insertStatement
+                    );
 
             }
+
+
+            mysqli_stmt_close(
+                $insertStatement
+            );
 
         } else {
 
             $error =
-                "Database query preparation failed.";
+                "Database query preparation failed: "
+                .
+                mysqli_error($conn);
 
         }
 
@@ -172,13 +175,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 // =====================================
 
 $employeeQuery = "
+
     SELECT
         id,
-        employee_id,
         full_name,
         department
+
     FROM employees
+
     ORDER BY full_name ASC
+
 ";
 
 
@@ -193,25 +199,35 @@ $employeeResult = mysqli_query(
 // =====================================
 
 $reviewListQuery = "
+
     SELECT
+
         performance_reviews.id,
+
+        performance_reviews.review_period,
+
         performance_reviews.rating,
-        performance_reviews.feedback,
+
+        performance_reviews.comments,
+
         performance_reviews.review_date,
-        employees.full_name,
-        employees.employee_id
+
+        employees.id AS employee_database_id,
+
+        employees.full_name
 
     FROM performance_reviews
 
     INNER JOIN employees
 
-    ON performance_reviews.employee_id
-    =
-    employees.id
+    ON performance_reviews.employee_id = employees.id
 
     ORDER BY
-    performance_reviews.review_date DESC,
-    performance_reviews.id DESC
+
+        performance_reviews.review_date DESC,
+
+        performance_reviews.id DESC
+
 ";
 
 
@@ -221,6 +237,7 @@ $reviewListResult = mysqli_query(
 );
 
 ?>
+
 
 <!DOCTYPE html>
 
@@ -236,21 +253,27 @@ $reviewListResult = mysqli_query(
     >
 
     <title>
-
-        Performance Review
-
+        Performance Review - HRTech
     </title>
 
+
+    <!-- Bootstrap -->
 
     <link
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
         rel="stylesheet"
     >
-<link
-    rel="stylesheet"
-    href="../css/style.css"
->
+
+
+    <!-- Custom CSS -->
+
+    <link
+        rel="stylesheet"
+        href="../css/style.css"
+    >
+
 </head>
+
 
 <body class="bg-light">
 
@@ -266,22 +289,17 @@ $reviewListResult = mysqli_query(
             href="dashboard.php"
             class="navbar-brand fw-bold"
         >
-
             HRTech
-
         </a>
 
 
         <div>
 
-
             <a
                 href="dashboard.php"
                 class="btn btn-light me-2"
             >
-
                 Dashboard
-
             </a>
 
 
@@ -289,11 +307,8 @@ $reviewListResult = mysqli_query(
                 href="logout.php"
                 class="btn btn-danger"
             >
-
                 Logout
-
             </a>
-
 
         </div>
 
@@ -309,16 +324,12 @@ $reviewListResult = mysqli_query(
 
 
     <h2>
-
         Performance Review
-
     </h2>
 
 
     <p class="text-muted">
-
         Add and manage employee performance reviews.
-
     </p>
 
 
@@ -326,19 +337,13 @@ $reviewListResult = mysqli_query(
 
     <?php if ($message !== "") { ?>
 
-
         <div class="alert alert-success">
 
             <?php
-
-            echo htmlspecialchars(
-                $message
-            );
-
+            echo htmlspecialchars($message);
             ?>
 
         </div>
-
 
     <?php } ?>
 
@@ -347,19 +352,13 @@ $reviewListResult = mysqli_query(
 
     <?php if ($error !== "") { ?>
 
-
         <div class="alert alert-danger">
 
             <?php
-
-            echo htmlspecialchars(
-                $error
-            );
-
+            echo htmlspecialchars($error);
             ?>
 
         </div>
-
 
     <?php } ?>
 
@@ -372,9 +371,7 @@ $reviewListResult = mysqli_query(
 
 
             <h4 class="mb-4">
-
                 Add Performance Review
-
             </h4>
 
 
@@ -386,9 +383,7 @@ $reviewListResult = mysqli_query(
                 <div class="mb-3">
 
                     <label class="form-label">
-
                         Select Employee
-
                     </label>
 
 
@@ -399,9 +394,7 @@ $reviewListResult = mysqli_query(
                     >
 
                         <option value="">
-
                             Select Employee
-
                         </option>
 
 
@@ -409,45 +402,43 @@ $reviewListResult = mysqli_query(
 
                         if (
                             $employeeResult &&
-                            mysqli_num_rows(
-                                $employeeResult
-                            ) > 0
+                            mysqli_num_rows($employeeResult) > 0
                         ) {
 
                             while (
                                 $employee =
-                                mysqli_fetch_assoc(
-                                    $employeeResult
-                                )
+                                mysqli_fetch_assoc($employeeResult)
                             ) {
 
                         ?>
 
-
                             <option
                                 value="<?php
-
-                                echo
-                                $employee["id"];
-
+                                echo $employee["id"];
                                 ?>"
                             >
 
                                 <?php
-
                                 echo htmlspecialchars(
                                     $employee["full_name"]
                                 );
-
                                 ?>
 
-                                -
 
                                 <?php
 
-                                echo htmlspecialchars(
-                                    $employee["employee_id"]
-                                );
+                                if (
+                                    !empty(
+                                        $employee["department"]
+                                    )
+                                ) {
+
+                                    echo " - " .
+                                    htmlspecialchars(
+                                        $employee["department"]
+                                    );
+
+                                }
 
                                 ?>
 
@@ -468,14 +459,32 @@ $reviewListResult = mysqli_query(
                 </div>
 
 
+                <!-- Review Period -->
+
+                <div class="mb-3">
+
+                    <label class="form-label">
+                        Review Period
+                    </label>
+
+
+                    <input
+                        type="text"
+                        name="review_period"
+                        class="form-control"
+                        placeholder="Example: September 2026"
+                        required
+                    >
+
+                </div>
+
+
                 <!-- Rating -->
 
                 <div class="mb-3">
 
                     <label class="form-label">
-
                         Rating
-
                     </label>
 
 
@@ -486,39 +495,27 @@ $reviewListResult = mysqli_query(
                     >
 
                         <option value="">
-
                             Select Rating
-
                         </option>
 
                         <option value="1">
-
                             1 / 5
-
                         </option>
 
                         <option value="2">
-
                             2 / 5
-
                         </option>
 
                         <option value="3">
-
                             3 / 5
-
                         </option>
 
                         <option value="4">
-
                             4 / 5
-
                         </option>
 
                         <option value="5">
-
                             5 / 5
-
                         </option>
 
                     </select>
@@ -526,22 +523,20 @@ $reviewListResult = mysqli_query(
                 </div>
 
 
-                <!-- Feedback -->
+                <!-- Comments -->
 
                 <div class="mb-3">
 
                     <label class="form-label">
-
-                        Feedback
-
+                        Comments
                     </label>
 
 
                     <textarea
-                        name="feedback"
+                        name="comments"
                         class="form-control"
                         rows="4"
-                        placeholder="Enter employee performance feedback"
+                        placeholder="Enter employee performance comments"
                         required
                     ></textarea>
 
@@ -553,9 +548,7 @@ $reviewListResult = mysqli_query(
                 <div class="mb-3">
 
                     <label class="form-label">
-
                         Review Date
-
                     </label>
 
 
@@ -563,13 +556,7 @@ $reviewListResult = mysqli_query(
                         type="date"
                         name="review_date"
                         class="form-control"
-                        value="<?php
-
-                        echo date(
-                            "Y-m-d"
-                        );
-
-                        ?>"
+                        value="<?php echo date("Y-m-d"); ?>"
                         required
                     >
 
@@ -582,9 +569,7 @@ $reviewListResult = mysqli_query(
                     type="submit"
                     class="btn btn-warning"
                 >
-
                     Save Performance Review
-
                 </button>
 
 
@@ -596,7 +581,7 @@ $reviewListResult = mysqli_query(
     </div>
 
 
-    <!-- Review List -->
+    <!-- Performance Review History -->
 
     <div class="card shadow border-0">
 
@@ -604,9 +589,7 @@ $reviewListResult = mysqli_query(
 
 
             <h4 class="mb-4">
-
                 Performance Review History
-
             </h4>
 
 
@@ -622,35 +605,17 @@ $reviewListResult = mysqli_query(
 
                         <tr>
 
-                            <th>
+                            <th>Employee</th>
 
-                                Employee
+                            <th>Employee ID</th>
 
-                            </th>
+                            <th>Review Period</th>
 
-                            <th>
+                            <th>Rating</th>
 
-                                Employee ID
+                            <th>Comments</th>
 
-                            </th>
-
-                            <th>
-
-                                Rating
-
-                            </th>
-
-                            <th>
-
-                                Feedback
-
-                            </th>
-
-                            <th>
-
-                                Review Date
-
-                            </th>
+                            <th>Review Date</th>
 
                         </tr>
 
@@ -664,16 +629,12 @@ $reviewListResult = mysqli_query(
 
                     if (
                         $reviewListResult &&
-                        mysqli_num_rows(
-                            $reviewListResult
-                        ) > 0
+                        mysqli_num_rows($reviewListResult) > 0
                     ) {
 
                         while (
                             $review =
-                            mysqli_fetch_assoc(
-                                $reviewListResult
-                            )
+                            mysqli_fetch_assoc($reviewListResult)
                         ) {
 
                     ?>
@@ -700,7 +661,22 @@ $reviewListResult = mysqli_query(
                                 <?php
 
                                 echo htmlspecialchars(
-                                    $review["employee_id"]
+                                    $review[
+                                        "employee_database_id"
+                                    ]
+                                );
+
+                                ?>
+
+                            </td>
+
+
+                            <td>
+
+                                <?php
+
+                                echo htmlspecialchars(
+                                    $review["review_period"]
                                 );
 
                                 ?>
@@ -711,10 +687,7 @@ $reviewListResult = mysqli_query(
                             <td>
 
                                 <span
-                                    class="
-                                    badge
-                                    bg-success
-                                    "
+                                    class="badge bg-success"
                                 >
 
                                     <?php
@@ -737,7 +710,7 @@ $reviewListResult = mysqli_query(
                                 <?php
 
                                 echo htmlspecialchars(
-                                    $review["feedback"]
+                                    $review["comments"]
                                 );
 
                                 ?>
@@ -750,9 +723,7 @@ $reviewListResult = mysqli_query(
                                 <?php
 
                                 echo htmlspecialchars(
-                                    $review[
-                                        "review_date"
-                                    ]
+                                    $review["review_date"]
                                 );
 
                                 ?>
@@ -775,8 +746,8 @@ $reviewListResult = mysqli_query(
                         <tr>
 
                             <td
-                                colspan="5"
-                                class="text-center"
+                                colspan="6"
+                                class="text-center text-muted"
                             >
 
                                 No performance reviews found.

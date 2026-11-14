@@ -2,17 +2,14 @@
 
 session_start();
 
-
+// =====================================
 // Login check
+// =====================================
 
 if (!isset($_SESSION["user_id"])) {
-
     header("Location: login.php");
-
     exit();
-
 }
-
 
 // =====================================
 // Admin Access Check
@@ -22,13 +19,8 @@ if (
     !isset($_SESSION["role"]) ||
     strtolower(trim($_SESSION["role"])) !== "admin"
 ) {
-
-    die(
-        "Access denied. Only HR Admin can assign onboarding tasks."
-    );
-
+    die("Access denied. Only HR Admin can assign onboarding tasks.");
 }
-
 
 // =====================================
 // Database Connection
@@ -36,11 +28,8 @@ if (
 
 require_once __DIR__ . "/../config/database.php";
 
-
 $message = "";
-
 $error = "";
-
 
 // =====================================
 // Assign Onboarding Task
@@ -48,69 +37,54 @@ $error = "";
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    $employeeId =
-        isset($_POST["employee_id"])
+    $employeeId = isset($_POST["employee_id"])
         ? (int) $_POST["employee_id"]
         : 0;
 
-
-    $taskTitle =
-        isset($_POST["task_title"])
+    $taskTitle = isset($_POST["task_title"])
         ? trim($_POST["task_title"])
         : "";
 
-
-    $taskDescription =
-        isset($_POST["task_description"])
+    $taskDescription = isset($_POST["task_description"])
         ? trim($_POST["task_description"])
         : "";
 
-
-    $dueDate =
-        isset($_POST["due_date"])
+    $dueDate = isset($_POST["due_date"])
         ? trim($_POST["due_date"])
         : "";
 
-
     // Validation
+    if ($employeeId <= 0 || $taskTitle === "") {
 
-    if (
-        $employeeId <= 0 ||
-        $taskTitle === ""
-    ) {
-
-        $error =
-            "Please select an employee and enter a task title.";
+        $error = "Please select an employee and enter a task title.";
 
     } else {
 
-        // Insert task
+        // =====================================
+        // Insert Task
+        // Database columns:
+        // task_name
+        // description
+        // due_date
+        // status
+        // =====================================
 
         $insertQuery = "
             INSERT INTO onboarding_tasks
             (
                 employee_id,
-                task_title,
-                task_description,
+                task_name,
+                description,
                 due_date,
                 status
             )
-            VALUES
-            (
-                ?,
-                ?,
-                ?,
-                ?,
-                'Pending'
-            )
+            VALUES (?, ?, ?, ?, 'Pending')
         ";
-
 
         $insertStatement = mysqli_prepare(
             $conn,
             $insertQuery
         );
-
 
         if ($insertStatement) {
 
@@ -123,34 +97,25 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $dueDate
             );
 
+            if (mysqli_stmt_execute($insertStatement)) {
 
-            if (
-                mysqli_stmt_execute(
-                    $insertStatement
-                )
-            ) {
-
-                $message =
-                    "Onboarding task assigned successfully.";
+                $message = "Onboarding task assigned successfully.";
 
             } else {
 
-                $error =
-                    "Task could not be assigned.";
-
+                $error = "Task could not be assigned: " .
+                         mysqli_stmt_error($insertStatement);
             }
+
+            mysqli_stmt_close($insertStatement);
 
         } else {
 
-            $error =
-                "Database query preparation failed.";
-
+            $error = "Database query preparation failed: " .
+                     mysqli_error($conn);
         }
-
     }
-
 }
-
 
 // =====================================
 // Get All Employees
@@ -166,12 +131,10 @@ $employeeQuery = "
     ORDER BY full_name ASC
 ";
 
-
 $employeeResult = mysqli_query(
     $conn,
     $employeeQuery
 );
-
 
 // =====================================
 // Get Assigned Tasks
@@ -180,8 +143,8 @@ $employeeResult = mysqli_query(
 $taskQuery = "
     SELECT
         onboarding_tasks.id,
-        onboarding_tasks.task_title,
-        onboarding_tasks.task_description,
+        onboarding_tasks.task_name,
+        onboarding_tasks.description,
         onboarding_tasks.due_date,
         onboarding_tasks.status,
         employees.full_name,
@@ -189,14 +152,10 @@ $taskQuery = "
     FROM onboarding_tasks
 
     INNER JOIN employees
-
-    ON onboarding_tasks.employee_id
-    =
-    employees.id
+        ON onboarding_tasks.employee_id = employees.id
 
     ORDER BY onboarding_tasks.id DESC
 ";
-
 
 $taskResult = mysqli_query(
     $conn,
@@ -218,12 +177,7 @@ $taskResult = mysqli_query(
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>
-
-        Assign Onboarding Task
-
-    </title>
-
+    <title>Assign Onboarding Task</title>
 
     <!-- Bootstrap CSS -->
 
@@ -234,9 +188,7 @@ $taskResult = mysqli_query(
 
 </head>
 
-
 <body class="bg-light">
-
 
 <!-- =====================================
 Navbar
@@ -246,42 +198,30 @@ Navbar
 
     <div class="container">
 
-
         <a
             href="dashboard.php"
             class="navbar-brand fw-bold"
         >
-
             HRTech
-
         </a>
 
-
         <div>
-
 
             <a
                 href="dashboard.php"
                 class="btn btn-light me-2"
             >
-
                 Dashboard
-
             </a>
-
 
             <a
                 href="logout.php"
                 class="btn btn-danger"
             >
-
                 Logout
-
             </a>
 
-
         </div>
-
 
     </div>
 
@@ -294,18 +234,12 @@ Main Content
 
 <div class="container mt-5">
 
-
     <h2>
-
         Assign Onboarding Task
-
     </h2>
 
-
     <p class="text-muted">
-
         Assign onboarding tasks to employees.
-
     </p>
 
 
@@ -313,19 +247,13 @@ Main Content
 
     <?php if ($message !== "") { ?>
 
-
         <div class="alert alert-success">
 
             <?php
-
-            echo htmlspecialchars(
-                $message
-            );
-
+            echo htmlspecialchars($message);
             ?>
 
         </div>
-
 
     <?php } ?>
 
@@ -334,19 +262,13 @@ Main Content
 
     <?php if ($error !== "") { ?>
 
-
         <div class="alert alert-danger">
 
             <?php
-
-            echo htmlspecialchars(
-                $error
-            );
-
+            echo htmlspecialchars($error);
             ?>
 
         </div>
-
 
     <?php } ?>
 
@@ -359,27 +281,19 @@ Main Content
 
         <div class="card-body">
 
-
             <h4 class="mb-4">
-
                 Create New Task
-
             </h4>
 
-
             <form method="POST">
-
 
                 <!-- Employee -->
 
                 <div class="mb-3">
 
                     <label class="form-label">
-
                         Select Employee
-
                     </label>
-
 
                     <select
                         name="employee_id"
@@ -388,60 +302,42 @@ Main Content
                     >
 
                         <option value="">
-
                             Select Employee
-
                         </option>
-
 
                         <?php
 
                         if (
                             $employeeResult &&
-                            mysqli_num_rows(
-                                $employeeResult
-                            ) > 0
+                            mysqli_num_rows($employeeResult) > 0
                         ) {
 
                             while (
                                 $employee =
-                                mysqli_fetch_assoc(
-                                    $employeeResult
-                                )
+                                mysqli_fetch_assoc($employeeResult)
                             ) {
 
                         ?>
 
-
                             <option
-                                value="<?php
-
-                                echo
-                                $employee["id"];
-
-                                ?>"
+                                value="<?php echo $employee["id"]; ?>"
                             >
 
                                 <?php
-
                                 echo htmlspecialchars(
                                     $employee["full_name"]
                                 );
-
                                 ?>
 
                                 -
 
                                 <?php
-
                                 echo htmlspecialchars(
                                     $employee["employee_id"]
                                 );
-
                                 ?>
 
                             </option>
-
 
                         <?php
 
@@ -450,7 +346,6 @@ Main Content
                         }
 
                         ?>
-
 
                     </select>
 
@@ -462,11 +357,8 @@ Main Content
                 <div class="mb-3">
 
                     <label class="form-label">
-
                         Task Title
-
                     </label>
-
 
                     <input
                         type="text"
@@ -484,11 +376,8 @@ Main Content
                 <div class="mb-3">
 
                     <label class="form-label">
-
                         Task Description
-
                     </label>
-
 
                     <textarea
                         name="task_description"
@@ -505,11 +394,8 @@ Main Content
                 <div class="mb-3">
 
                     <label class="form-label">
-
                         Due Date
-
                     </label>
-
 
                     <input
                         type="date"
@@ -526,14 +412,10 @@ Main Content
                     type="submit"
                     class="btn btn-primary"
                 >
-
                     Assign Task
-
                 </button>
 
-
             </form>
-
 
         </div>
 
@@ -548,100 +430,58 @@ Main Content
 
         <div class="card-body">
 
-
             <h4 class="mb-4">
-
                 Assigned Onboarding Tasks
-
             </h4>
-
 
             <div class="table-responsive">
 
-
-                <table
-                    class="table table-bordered table-hover"
-                >
-
+                <table class="table table-bordered table-hover">
 
                     <thead class="table-primary">
 
                         <tr>
 
-                            <th>
+                            <th>Employee</th>
 
-                                Employee
+                            <th>Employee ID</th>
 
-                            </th>
+                            <th>Task</th>
 
-                            <th>
+                            <th>Description</th>
 
-                                Employee ID
+                            <th>Due Date</th>
 
-                            </th>
-
-                            <th>
-
-                                Task
-
-                            </th>
-
-                            <th>
-
-                                Description
-
-                            </th>
-
-                            <th>
-
-                                Due Date
-
-                            </th>
-
-                            <th>
-
-                                Status
-
-                            </th>
+                            <th>Status</th>
 
                         </tr>
 
                     </thead>
 
-
                     <tbody>
-
 
                     <?php
 
                     if (
                         $taskResult &&
-                        mysqli_num_rows(
-                            $taskResult
-                        ) > 0
+                        mysqli_num_rows($taskResult) > 0
                     ) {
 
                         while (
                             $task =
-                            mysqli_fetch_assoc(
-                                $taskResult
-                            )
+                            mysqli_fetch_assoc($taskResult)
                         ) {
 
                     ?>
 
-
                         <tr>
-
 
                             <td>
 
                                 <?php
-
                                 echo htmlspecialchars(
                                     $task["full_name"]
                                 );
-
                                 ?>
 
                             </td>
@@ -650,39 +490,35 @@ Main Content
                             <td>
 
                                 <?php
-
                                 echo htmlspecialchars(
                                     $task["employee_id"]
                                 );
-
                                 ?>
 
                             </td>
 
 
+                            <!-- FIXED: task_name -->
+
                             <td>
 
                                 <?php
-
                                 echo htmlspecialchars(
-                                    $task["task_title"]
+                                    $task["task_name"]
                                 );
-
                                 ?>
 
                             </td>
 
 
+                            <!-- FIXED: description -->
+
                             <td>
 
                                 <?php
-
                                 echo htmlspecialchars(
-                                    $task[
-                                        "task_description"
-                                    ] ?? ""
+                                    $task["description"] ?? ""
                                 );
-
                                 ?>
 
                             </td>
@@ -691,13 +527,9 @@ Main Content
                             <td>
 
                                 <?php
-
                                 echo htmlspecialchars(
-                                    $task[
-                                        "due_date"
-                                    ] ?? ""
+                                    $task["due_date"] ?? ""
                                 );
-
                                 ?>
 
                             </td>
@@ -705,54 +537,27 @@ Main Content
 
                             <td>
 
-
                                 <?php
 
-                                $status =
-                                $task["status"];
+                                $status = $task["status"];
 
-
-                                if (
-                                    $status ===
-                                    "Completed"
-                                ) {
+                                if ($status === "Completed") {
 
                                 ?>
 
-
-                                    <span
-                                        class="
-                                        badge
-                                        bg-success
-                                        "
-                                    >
-
+                                    <span class="badge bg-success">
                                         Completed
-
                                     </span>
-
 
                                 <?php
 
-                                } elseif (
-                                    $status ===
-                                    "In Progress"
-                                ) {
+                                } elseif ($status === "In Progress") {
 
                                 ?>
 
-
-                                    <span
-                                        class="
-                                        badge
-                                        bg-primary
-                                        "
-                                    >
-
+                                    <span class="badge bg-primary">
                                         In Progress
-
                                     </span>
-
 
                                 <?php
 
@@ -760,19 +565,9 @@ Main Content
 
                                 ?>
 
-
-                                    <span
-                                        class="
-                                        badge
-                                        bg-warning
-                                        text-dark
-                                        "
-                                    >
-
+                                    <span class="badge bg-warning text-dark">
                                         Pending
-
                                     </span>
-
 
                                 <?php
 
@@ -780,12 +575,9 @@ Main Content
 
                                 ?>
 
-
                             </td>
 
-
                         </tr>
-
 
                     <?php
 
@@ -795,20 +587,16 @@ Main Content
 
                     ?>
 
-
                         <tr>
 
                             <td
                                 colspan="6"
                                 class="text-center"
                             >
-
                                 No onboarding tasks assigned.
-
                             </td>
 
                         </tr>
-
 
                     <?php
 
@@ -816,20 +604,15 @@ Main Content
 
                     ?>
 
-
                     </tbody>
-
 
                 </table>
 
-
             </div>
-
 
         </div>
 
     </div>
-
 
 </div>
 
@@ -839,7 +622,6 @@ Main Content
 <script
     src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
 ></script>
-
 
 </body>
 

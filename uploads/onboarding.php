@@ -3,12 +3,13 @@
 session_start();
 
 
-// Login check
+// =====================================
+// Login Check
+// =====================================
 
 if (!isset($_SESSION["user_id"])) {
 
     header("Location: login.php");
-
     exit();
 
 }
@@ -18,14 +19,15 @@ if (!isset($_SESSION["user_id"])) {
 // Admin Access Check
 // =====================================
 
-if (
-    !isset($_SESSION["role"]) ||
-    strtolower(trim($_SESSION["role"])) !== "admin"
-) {
+$userRole = strtolower(
+    trim($_SESSION["role"] ?? "")
+);
 
-    die(
-        "Access denied. Only HR Admin can assign onboarding tasks."
-    );
+
+if ($userRole !== "admin") {
+
+    header("Location: dashboard.php");
+    exit();
 
 }
 
@@ -49,52 +51,52 @@ $error = "";
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $employeeId =
-        isset($_POST["employee_id"])
-        ? (int) $_POST["employee_id"]
-        : 0;
+        (int) ($_POST["employee_id"] ?? 0);
 
 
     $taskTitle =
-        isset($_POST["task_title"])
-        ? trim($_POST["task_title"])
-        : "";
+        trim($_POST["task_title"] ?? "");
 
 
     $taskDescription =
-        isset($_POST["task_description"])
-        ? trim($_POST["task_description"])
-        : "";
+        trim($_POST["description"] ?? "");
 
 
     $dueDate =
-        isset($_POST["due_date"])
-        ? trim($_POST["due_date"])
-        : "";
+        trim($_POST["due_date"] ?? "");
 
 
+    // =====================================
     // Validation
+    // =====================================
 
-    if (
-        $employeeId <= 0 ||
-        $taskTitle === ""
-    ) {
+    if ($employeeId <= 0) {
 
         $error =
-            "Please select an employee and enter a task title.";
+            "Please select an employee.";
+
+    } elseif ($taskTitle === "") {
+
+        $error =
+            "Please enter a task title.";
 
     } else {
 
-        // Insert task
+        // =====================================
+        // Insert Task
+        // =====================================
 
         $insertQuery = "
+
             INSERT INTO onboarding_tasks
             (
                 employee_id,
-                task_title,
-                task_description,
+                task_name,
+                description,
                 due_date,
                 status
             )
+
             VALUES
             (
                 ?,
@@ -103,24 +105,33 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 ?,
                 'Pending'
             )
+
         ";
 
 
-        $insertStatement = mysqli_prepare(
-            $conn,
-            $insertQuery
-        );
+        $insertStatement =
+            mysqli_prepare(
+                $conn,
+                $insertQuery
+            );
 
 
         if ($insertStatement) {
 
             mysqli_stmt_bind_param(
+
                 $insertStatement,
+
                 "isss",
+
                 $employeeId,
+
                 $taskTitle,
+
                 $taskDescription,
+
                 $dueDate
+
             );
 
 
@@ -136,14 +147,25 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             } else {
 
                 $error =
-                    "Task could not be assigned.";
+                    "Task could not be assigned: "
+                    .
+                    mysqli_stmt_error(
+                        $insertStatement
+                    );
 
             }
+
+
+            mysqli_stmt_close(
+                $insertStatement
+            );
 
         } else {
 
             $error =
-                "Database query preparation failed.";
+                "Database query preparation failed: "
+                .
+                mysqli_error($conn);
 
         }
 
@@ -157,20 +179,25 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 // =====================================
 
 $employeeQuery = "
+
     SELECT
         id,
-        employee_id,
         full_name,
-        department
+        department,
+        position
+
     FROM employees
+
     ORDER BY full_name ASC
+
 ";
 
 
-$employeeResult = mysqli_query(
-    $conn,
-    $employeeQuery
-);
+$employeeResult =
+    mysqli_query(
+        $conn,
+        $employeeQuery
+    );
 
 
 // =====================================
@@ -178,14 +205,25 @@ $employeeResult = mysqli_query(
 // =====================================
 
 $taskQuery = "
+
     SELECT
+
         onboarding_tasks.id,
-        onboarding_tasks.task_title,
-        onboarding_tasks.task_description,
+
+        onboarding_tasks.task_name,
+
+        onboarding_tasks.description,
+
         onboarding_tasks.due_date,
+
         onboarding_tasks.status,
+
+        employees.id AS employee_database_id,
+
         employees.full_name,
-        employees.employee_id
+
+        employees.department
+
     FROM onboarding_tasks
 
     INNER JOIN employees
@@ -195,13 +233,15 @@ $taskQuery = "
     employees.id
 
     ORDER BY onboarding_tasks.id DESC
+
 ";
 
 
-$taskResult = mysqli_query(
-    $conn,
-    $taskQuery
-);
+$taskResult =
+    mysqli_query(
+        $conn,
+        $taskQuery
+    );
 
 ?>
 
@@ -219,9 +259,7 @@ $taskResult = mysqli_query(
     >
 
     <title>
-
-        Assign Onboarding Task
-
+        Assign Onboarding Task - HRTech
     </title>
 
 
@@ -230,6 +268,14 @@ $taskResult = mysqli_query(
     <link
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
         rel="stylesheet"
+    >
+
+
+    <!-- Custom CSS -->
+
+    <link
+        rel="stylesheet"
+        href="../css/style.css"
     >
 
 </head>
@@ -317,11 +363,7 @@ Main Content
         <div class="alert alert-success">
 
             <?php
-
-            echo htmlspecialchars(
-                $message
-            );
-
+            echo htmlspecialchars($message);
             ?>
 
         </div>
@@ -338,11 +380,7 @@ Main Content
         <div class="alert alert-danger">
 
             <?php
-
-            echo htmlspecialchars(
-                $error
-            );
-
+            echo htmlspecialchars($error);
             ?>
 
         </div>
@@ -356,6 +394,7 @@ Main Content
     ===================================== -->
 
     <div class="card shadow border-0 mb-5">
+
 
         <div class="card-body">
 
@@ -374,6 +413,7 @@ Main Content
 
                 <div class="mb-3">
 
+
                     <label class="form-label">
 
                         Select Employee
@@ -387,6 +427,7 @@ Main Content
                         required
                     >
 
+
                         <option value="">
 
                             Select Employee
@@ -398,16 +439,12 @@ Main Content
 
                         if (
                             $employeeResult &&
-                            mysqli_num_rows(
-                                $employeeResult
-                            ) > 0
+                            mysqli_num_rows($employeeResult) > 0
                         ) {
 
                             while (
                                 $employee =
-                                mysqli_fetch_assoc(
-                                    $employeeResult
-                                )
+                                mysqli_fetch_assoc($employeeResult)
                             ) {
 
                         ?>
@@ -415,12 +452,10 @@ Main Content
 
                             <option
                                 value="<?php
-
-                                echo
-                                $employee["id"];
-
+                                echo $employee["id"];
                                 ?>"
                             >
+
 
                                 <?php
 
@@ -430,15 +465,26 @@ Main Content
 
                                 ?>
 
-                                -
 
                                 <?php
 
-                                echo htmlspecialchars(
-                                    $employee["employee_id"]
-                                );
+                                if (
+                                    !empty(
+                                        $employee["department"]
+                                    )
+                                ) {
+
+                                    echo
+                                    " - "
+                                    .
+                                    htmlspecialchars(
+                                        $employee["department"]
+                                    );
+
+                                }
 
                                 ?>
+
 
                             </option>
 
@@ -454,12 +500,14 @@ Main Content
 
                     </select>
 
+
                 </div>
 
 
                 <!-- Task Title -->
 
                 <div class="mb-3">
+
 
                     <label class="form-label">
 
@@ -476,12 +524,14 @@ Main Content
                         required
                     >
 
+
                 </div>
 
 
                 <!-- Description -->
 
                 <div class="mb-3">
+
 
                     <label class="form-label">
 
@@ -491,11 +541,12 @@ Main Content
 
 
                     <textarea
-                        name="task_description"
+                        name="description"
                         class="form-control"
                         rows="4"
                         placeholder="Enter task description"
                     ></textarea>
+
 
                 </div>
 
@@ -503,6 +554,7 @@ Main Content
                 <!-- Due Date -->
 
                 <div class="mb-3">
+
 
                     <label class="form-label">
 
@@ -516,6 +568,7 @@ Main Content
                         name="due_date"
                         class="form-control"
                     >
+
 
                 </div>
 
@@ -546,6 +599,7 @@ Main Content
 
     <div class="card shadow border-0">
 
+
         <div class="card-body">
 
 
@@ -566,45 +620,25 @@ Main Content
 
                     <thead class="table-primary">
 
+
                         <tr>
 
-                            <th>
+                            <th>Employee</th>
 
-                                Employee
+                            <th>Employee ID</th>
 
-                            </th>
+                            <th>Department</th>
 
-                            <th>
+                            <th>Task</th>
 
-                                Employee ID
+                            <th>Description</th>
 
-                            </th>
+                            <th>Due Date</th>
 
-                            <th>
-
-                                Task
-
-                            </th>
-
-                            <th>
-
-                                Description
-
-                            </th>
-
-                            <th>
-
-                                Due Date
-
-                            </th>
-
-                            <th>
-
-                                Status
-
-                            </th>
+                            <th>Status</th>
 
                         </tr>
+
 
                     </thead>
 
@@ -616,17 +650,18 @@ Main Content
 
                     if (
                         $taskResult &&
-                        mysqli_num_rows(
-                            $taskResult
-                        ) > 0
+                        mysqli_num_rows($taskResult) > 0
                     ) {
 
                         while (
                             $task =
-                            mysqli_fetch_assoc(
-                                $taskResult
-                            )
+                            mysqli_fetch_assoc($taskResult)
                         ) {
+
+                            $status =
+                                trim(
+                                    $task["status"]
+                                );
 
                     ?>
 
@@ -647,25 +682,16 @@ Main Content
                             </td>
 
 
-                            <td>
-
-                                <?php
-
-                                echo htmlspecialchars(
-                                    $task["employee_id"]
-                                );
-
-                                ?>
-
-                            </td>
-
+                            <!-- Database Employee ID -->
 
                             <td>
 
                                 <?php
 
                                 echo htmlspecialchars(
-                                    $task["task_title"]
+                                    $task[
+                                        "employee_database_id"
+                                    ]
                                 );
 
                                 ?>
@@ -679,7 +705,35 @@ Main Content
 
                                 echo htmlspecialchars(
                                     $task[
-                                        "task_description"
+                                        "department"
+                                    ] ?? ""
+                                );
+
+                                ?>
+
+                            </td>
+
+
+                            <td>
+
+                                <?php
+
+                                echo htmlspecialchars(
+                                    $task["task_name"]
+                                );
+
+                                ?>
+
+                            </td>
+
+
+                            <td>
+
+                                <?php
+
+                                echo htmlspecialchars(
+                                    $task[
+                                        "description"
                                     ] ?? ""
                                 );
 
@@ -708,77 +762,43 @@ Main Content
 
                                 <?php
 
-                                $status =
-                                $task["status"];
-
-
                                 if (
-                                    $status ===
-                                    "Completed"
+                                    $status === "Completed"
                                 ) {
 
-                                ?>
-
-
-                                    <span
-                                        class="
-                                        badge
-                                        bg-success
-                                        "
-                                    >
-
-                                        Completed
-
-                                    </span>
-
-
-                                <?php
+                                    $badge = "success";
 
                                 } elseif (
-                                    $status ===
-                                    "In Progress"
+                                    $status === "In Progress"
                                 ) {
 
-                                ?>
-
-
-                                    <span
-                                        class="
-                                        badge
-                                        bg-primary
-                                        "
-                                    >
-
-                                        In Progress
-
-                                    </span>
-
-
-                                <?php
+                                    $badge = "primary";
 
                                 } else {
 
-                                ?>
-
-
-                                    <span
-                                        class="
-                                        badge
-                                        bg-warning
-                                        text-dark
-                                        "
-                                    >
-
-                                        Pending
-
-                                    </span>
-
-
-                                <?php
+                                    $badge = "warning";
 
                                 }
 
                                 ?>
+
+
+                                <span
+                                    class="
+                                    badge
+                                    bg-<?php echo $badge; ?>
+                                    "
+                                >
+
+                                    <?php
+
+                                    echo htmlspecialchars(
+                                        $status
+                                    );
+
+                                    ?>
+
+                                </span>
 
 
                             </td>
@@ -799,8 +819,8 @@ Main Content
                         <tr>
 
                             <td
-                                colspan="6"
-                                class="text-center"
+                                colspan="7"
+                                class="text-center text-muted"
                             >
 
                                 No onboarding tasks assigned.
@@ -827,6 +847,7 @@ Main Content
 
 
         </div>
+
 
     </div>
 
